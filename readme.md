@@ -1,11 +1,13 @@
 ### How to use
 
-Open _config.json_ and change the email and password to your mangarock login
+Install NodeJS
 
-Then, open CMD or Powershell in the MRTT directory and run _npm install_
+run __npm run build__
 
-After that finishes, run _node ._ and you should have a new .JSON file in _MangaLogs_
+install Jekyll
 
-Import the .JSON file into Tachi
+run __jekyll serve__
+
+You can also run in your terminal with __node . <email> <pass>__ (This does not need Jekyll)
 
 ###### Side Note: This does not get all of your reading history, just the last read chapter

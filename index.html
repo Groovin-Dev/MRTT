@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MR to MD</title>
+
+    <script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
+    <script src="./lib/app.bundled.js"></script>
+    <link href='https://fonts.googleapis.com/css?family=Open+Sans:700,600,400,300' rel='stylesheet' type='text/css'/>
+    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/fomantic-ui@2.8.3/dist/semantic.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/fomantic-ui@2.8.3/dist/semantic.min.js"></script>
+
+    <script>
+
+        let combinedList = [];
+
+        function saveData(blob, fileName)
+        {
+            let a = document.createElement("a");
+            document.body.appendChild(a);
+            a.style.display = "none";
+
+            let url = window.URL.createObjectURL(blob);
+            a.href = url;
+            a.download = fileName;
+            a.click();
+            window.URL.revokeObjectURL(url);
+        }
+
+        function exportMDList() {
+            let mdList = [];
+            combinedList.forEach(x => {
+                if (!x['md']) return;
+
+                return mdList.push({comic_id: `${x['md']['id']}`});
+            });
+            let blob = new Blob([JSON.stringify(mdList)], {type: "text/plain; encoding=utf8"});
+            saveData(blob, 'MD_EXPORT_' + Date.now() / 1000 + '.json');
+        }
+
+        function exportMRList() {
+            let blob = new Blob([JSON.stringify(combinedList.map(x => x['mr']), null, 4)], {type: "text/plain; encoding=utf8"});
+            saveData(blob, 'MR_EXPORT_' + Date.now() / 1000 + '.json');
+        }
+
+        async function exportList() {
+            const email = $('#email').val();
+            const pass = $('#pass').val();
+
+            $('#box').remove();
+            $('#loader').fadeIn(500);
+
+            try {
+                const list = await app.exportMRList(email, pass, true);
+                if (list === undefined || list === null) {
+                    console.log("Could not get MR List");
+                    return;
+                }
+
+                console.log(`Found ${list.mangas.length} manga on MR`);
+                console.log(JSON.stringify(list.mangas));
+
+                $('#login').fadeOut(500, () => {});
+
+                combinedList = (await app.mrListToMD(list)).results;
+
+                $('#loader').fadeOut(500);
+                $('#list').fadeIn(500);
+
+                for (let i = 0; i < combinedList.length; i++) {
+                    const manga = combinedList[i];
+                    console.log(manga);
+                    if (!manga['md']) {
+                        $('#mr_list').append(`
+                            <div class="ui fluid horizontal card">
+                                <div class="image" style="width: 150px; height: 225px; background-size: contain; background-position: center; background-repeat: no-repeat; background-image: url('${manga['mr']['thumbnail']}')" />
+                                <div class="content" style="height: 225px; overflow: auto">
+                                    <h3 class="header">${manga['mr']['name']}</h3>
+                                    <div class="description">${manga['mr']['description'].trim()}</div>
+                                </div>
+                            </div>`);
+
+                        $('#md_list').append(`
+                            <div class="ui fluid horizontal card">
+                                <div class="image" style="width: 150px; height: 225px; background-size: contain; background-position: center; background-repeat: no-repeat; background-image: url('http://placehold.jp/cccccc/8f8f8f/300x450.png?text=Manga%20Not%20Found')" />
+                                <div class="content" style="height: 225px; overflow: auto">
+                                    <h3 class="header">Manga not found</h3>
+                                    <div class="description">The manga <b>${manga['mr']['name']}</b> could not be found on MangaDex</div>
+                                </div>
+                            </div>`);
+                    } else {
+
+                        Object.keys(manga).forEach(key => {
+                            console.log(typeof key);
+                            if (key === "mr") {
+                                $('#mr_list').append(`
+                                    <div class="ui fluid horizontal card">
+                                        <div class="image" style="width: 150px; height: 225px; background-size: contain; background-position: center; background-repeat: no-repeat; background-image: url('${manga['mr']['thumbnail']}')" />
+                                        <div class="content" style="height: 225px; overflow: auto">
+                                            <h3 class="header">${manga['mr']['name']}</h3>
+                                            <div class="description">${manga['mr']['description'].trim()}</div>
+                                        </div>
+                                    </div>
+                                `);
+                            } else {
+                                $('#md_list').append(`
+                                    <div class="ui fluid horizontal card">
+                                        <div class="image" style="width: 150px; height: 225px; background-size: contain; background-position: center; background-repeat: no-repeat; background-image: url('https://mangadex.org/images/manga/${manga['md']['id']}.large.jpg?1537907572')" />
+                                        <div class="content" style="height: 225px; overflow: auto">
+                                            <h3 class="header">${manga['md']['titles'][0]}</h3>
+                                            <div class="description">${manga['md']['description'].trim()}</div>
+                                        </div>
+                                    </div>
+                                `);
+                            }
+                        });
+                    }
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+    </script>
+</head>
+<body>
+<div class="ui segment" style="width: 100%; height: 100%; display: none" id="loader">
+    <div class="ui active dimmer">
+        <div class="ui indeterminate text loader">Fetching Manga</div>
+    </div>
+    <p></p>
+</div>
+<div class="ui card" id="box"
+     style="position: absolute; left: 50%; -webkit-transform: translate(-50%); transform: translate(-50%); width: 30%">
+    <div class="ui content">
+        <form id="login" action="#" method="POST" onsubmit="this.preventDefault()">
+            <h1>Manga Rock <i class="angle right icon"></i> Manga Dex</h1>
+            <div class="ui fluid input" style="margin-bottom: 10px">
+                <label for="email"></label><input type="email" name="email" placeholder="Email" id="email"/>
+            </div>
+            <div class="ui fluid input">
+                <label for="pass"></label><input type="password" name="password" placeholder="Password" class="ui input" id="pass" style="margin-bottom: 10px"/>
+            </div>
+
+            <button onclick="exportList()" class="ui primary button">Login</button>
+        </form>
+        <a href="https://discord.gg/Ny83JV3" target="_blank">
+            <button class="ui blue right floated tertiary icon button">
+                <i class="book icon"></i>
+            </button>
+        </a>
+
+        <a href="https://www.patreon.com/bePatron?u=30023884" target="_blank">
+            <button class="ui red right floated tertiary icon button" >
+                <i class="patreon icon"></i>
+            </button>
+        </a>
+    </div>
+</div>
+
+<div class="ui segment" id="list" style="display: none">
+    <div class="ui two column very relaxed grid">
+        <div class="column" id="mr_list" >
+            <h1 class="ui center aligned header">Manga Rock</h1>
+            <div class="ui right floated green vertical animated button" tabindex="0" style="margin-bottom: 10px" onclick="exportMRList()">
+                <div class="visible content">Export</div>
+                <div class="hidden content">
+                    <i class="file download icon"></i>
+                </div>
+            </div>
+        </div>
+        <div class="column" id="md_list">
+            <h1 class="ui center aligned header">MangaDex</h1>
+            <div class="ui left floated left green vertical animated button" tabindex="0" style="margin-bottom: 10px" onclick="exportMDList()">
+                <div class="visible content" >Export</div>
+                <div class="hidden content">
+                    <i class="file download icon"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="ui vertical divider"></div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/7.9.1/firebase-app.js"></script>
+
+<script src="https://www.gstatic.com/firebasejs/7.9.1/firebase-analytics.js"></script>
+
+<script>
+    // Your web app's Firebase configuration
+    let firebaseConfig = {
+        apiKey: "AIzaSyAD9AOBoXRsEF9-nYH1c5PftVKtapCHkxE",
+        authDomain: "mangadexapi.firebaseapp.com",
+        databaseURL: "https://mangadexapi.firebaseio.com",
+        projectId: "mangadexapi",
+        storageBucket: "mangadexapi.appspot.com",
+        messagingSenderId: "166446379397",
+        appId: "1:166446379397:web:51947ec76c264115a054ec",
+        measurementId: "G-NG39J3RM65"
+    };
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    firebase.analytics();
+</script>
+</body>
+</html>
