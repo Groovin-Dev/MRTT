@@ -1,6 +1,38 @@
 import * as utils from './Functions'; // Logging utils
 import request from 'request-promise-native'; // Request to make request to the mangarock API
 
+export const checkExistUser = ( email: string ) => {
+	let options = {
+		'method': 'PUT',
+		'url': 'https://cors-anywhere.herokuapp.com/https://mangarock.com/ajax/account/checkExistedUser',
+		'headers': {
+			'Origin': null,
+			'Content-Type': 'application/json',
+			'Referer': 'https://mangarock.com/account/login'
+		},
+		body: JSON.stringify( { email: email } )
+	};
+
+	return request(options).then(res => {
+		return JSON.parse(res)
+	});
+};
+
+export const verifyPassword = ( email: string, password: string ) => {
+	let options = {
+		'method': 'POST',
+		'url': 'https://us-central1-mangadexapi.cloudfunctions.net/mrLogin',
+		'headers': {
+			'Content-Type': 'application/json'
+		},
+		body: JSON.stringify( { email: email, password: password } )
+	};
+
+	return request(options).then(res => {
+		return JSON.parse(res)
+	});
+}
+
 export const mrListToMD = async ( list: any ) => {
 	
 	let opt1 = {

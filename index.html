@@ -23,7 +23,7 @@
 <div class="ui card" id="box"
      style="position: absolute; left: 50%; -webkit-transform: translate(-50%); transform: translate(-50%); width: 30%">
     <div class="ui content">
-        <form id="login" method="POST" onsubmit="this.preventDefault()">
+        <div id="login">
             <h1>Manga Rock <i class="angle right icon"></i> Manga Dex</h1>
             <div class="ui fluid input small-bottom-margin">
                 <label for="email"></label><input type="email" name="email" placeholder="Email" class="ui input"  id="email"/>
@@ -33,7 +33,7 @@
             </div>
 
             <button onclick="exportList()" class="ui primary button">Login</button>
-        </form>
+        </div>
         <a href="https://discord.gg/Ny83JV3" target="_blank">
             <button class="ui blue right floated tertiary icon button">
                 <i class="book icon"></i>

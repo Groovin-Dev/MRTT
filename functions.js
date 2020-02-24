@@ -32,7 +32,42 @@ const exportList = async () => {
     let email = $('#email').val();
     let pass = $('#pass').val();
 
-    $('#box').remove();
+    if (email === "" || pass === "") {
+        $('body')
+            .toast({
+                class: 'error',
+                message: `Please enter an email and password.`
+            });
+        return
+    }
+
+    let userExists = await app.checkExistUser(email);
+
+    if (userExists.code !== 0) {
+        console.log(`User does not exist.`);
+        $('body')
+            .toast({
+                class: 'error',
+                message: `Your email does not exist. Please try again.`
+            });
+        return;
+    };
+
+    let credOK = await app.verifyPassword(email, pass);
+
+    console.log(credOK);
+
+    if (!credOK['token']) {
+        console.log(`Password Incorrect`);
+        $('body')
+            .toast({
+                class: 'error',
+                message: `Your password is incorrect. Please try again.`
+            });
+        return;
+    }
+
+    $('#box').hide();
     $('#loader').fadeIn(500);
 
     try {
