@@ -1,162 +1,156 @@
-import * as utils from './Functions'; // Logging utils
-import request from 'request-promise-native'; // Request to make request to the mangarock API
+import axios from 'axios';
 
-export const checkExistUser = ( email: string ) => {
-	let options = {
-		'method': 'PUT',
-		'url': 'https://cors-anywhere.herokuapp.com/https://mangarock.com/ajax/account/checkExistedUser',
-		'headers': {
-			'Origin': null,
-			'Content-Type': 'application/json',
-			'Referer': 'https://mangarock.com/account/login'
-		},
-		body: JSON.stringify( { email: email } )
-	};
-
-	return request(options).then(res => {
-		return JSON.parse(res)
+const webSync = async ( token: string ) => {
+	return axios({
+		method: 'PUT',
+		url: 'https://api.mangarockhd.com/appsync/web_import',
+		headers: {
+			'Authorization': token
+		}
+	}).then((res: any) => {
+		return res;
 	});
+};
+
+const getFavorites = async ( token: string ) => {
+	await webSync(token).then((r: any) => { console.log('Synced with Manga Rock') });
+
+	return axios({
+		method: 'POST',
+		url: 'https://cors-anywhere.herokuapp.com/https://graphql.mangarock.io/graphql',
+		headers: {
+			'Content-Type': 'application/json',
+ 				'Authorization': token,
+ 				'Origin': null
+		},
+		data: JSON.stringify({
+			"operationName": "favorites",
+			"variables": {},
+			"query": "query favorites($updatedAt: AWSDateTime, $nextToken: String) {\n  favorites: listFavoritesByUpdatedTimeWithPaging(updatedAt: $updatedAt, nextToken: $nextToken) {\n    items {\n      oid\n        __typename\n    }\n    __typename\n  }\n}\n"
+		})
+	}).then((res: any) => {
+		return res.data.data.favorites.items
+	});
+};
+
+export const checkExistUser = async ( email: string ) => {
+	return axios({
+		method: 'PUT',
+		url: 'https://cors-anywhere.herokuapp.com/https://mangarock.com/ajax/account/checkExistedUser',
+		headers: {
+			'Origin': null,
+ 			'Content-Type': 'application/json',
+ 			'Referer': 'https://mangarock.com/account/login'
+		},
+		data: JSON.stringify({ email })
+	}).then((res: any) => {
+		return res.data.code === 0 ? true : false
+	})
 };
 
 export const verifyPassword = ( email: string, password: string ) => {
-	let options = {
-		'method': 'POST',
-		'url': 'https://us-central1-mangadexapi.cloudfunctions.net/mrLogin',
-		'headers': {
+	return axios({
+		method: 'POST',
+		url: 'https://us-central1-mangadexapi.cloudfunctions.net/mrLogin',
+		headers: {
 			'Content-Type': 'application/json'
 		},
-		body: JSON.stringify( { email: email, password: password } )
-	};
+		data: JSON.stringify({ email, password })
+	}).then((res: any) => {
+		return res.data.token ? true : false
+	}).catch(err => {
+		return err
+	})
+};
 
-	return request(options).then(res => {
-		return JSON.parse(res)
+export const MRtoMD = async ( list: any ) => {
+	return axios({
+		method: 'POST',
+		url: 'https://us-central1-mangadexapi.cloudfunctions.net/bulkSearch',
+		headers: {
+			'Content-Type': 'application/json'
+		},
+		data: JSON.stringify(list)
+	}).then((res: any) => {
+		return res.data.results
 	});
 }
 
-export const mrListToMD = async ( list: any ) => {
-	
-	let opt1 = {
-		'method': 'POST',
-		'url': 'https://us-central1-mangadexapi.cloudfunctions.net/bulkSearch',
-		'headers': {
-			'Content-Type': 'application/json'
-		},
-		body: JSON.stringify( list.mangas )
-	};
-	
-	return request( opt1 ).then( response => {
-		return JSON.parse( response );
-	} );
-};
+export const signIn = async ( email: string, password: string, proxy: boolean = false ) => {
+	let options = {};
 
-export const exportMRList = async ( email: string, password: string, proxy: boolean = false ) => {
-	utils.log( `EMAIL: ${ email } PASSWORD: ${ password }` );
-	
-	let exportedList = {
-		"mangas": []
-	};
-	
-	let opt1 = Object.create( {} );
-	if ( proxy ) {
-		opt1 = {
-			'method': 'POST',
-			'url': 'https://us-central1-mangadexapi.cloudfunctions.net/mrLogin',
-			'headers': {
+	if (proxy) {
+		options = {
+			method: 'POST',
+			url: 'https://us-central1-mangadexapi.cloudfunctions.net/mrLogin',
+			headers: {
 				'Content-Type': 'application/json'
 			},
-			body: JSON.stringify( { "email": `${ email }`, "password": `${ password }` } )
-		};
+			data: JSON.stringify({ email, password })
+		}
 	} else {
-		opt1 = {
-			'method': 'POST',
-			'url': 'https://www.googleapis.com/identitytoolkit/v3/relyingparty/verifyPassword?key=AIzaSyCFJPh6357HhIID3SgeRam2Cv6n139ymig',
-			'headers': {
+		options = {
+			method: 'POST',
+			url: 'https://www.googleapis.com/identitytoolkit/v3/relyingparty/verifyPassword?key=AIzaSyCFJPh6357HhIID3SgeRam2Cv6n139ymig',
+			headers: {
 				'Content-Type': 'application/json',
-				'Referer': 'https://mangarock.com/account/login'
+ 				'Referer': 'https://mangarock.com/account/login'
 			},
-			body: JSON.stringify( { "email": `${ email }`, "password": `${ password }`, "returnSecureToken": true } )
-		};
+			data: JSON.stringify({ email, password, returnSecureToken: true })
+		}
 	}
-	
-	/* Sign in request */
-	return request( opt1 ).then( response => {
-		let parse = JSON.parse( response );
-		
-		let opt2 = {
-			'method': 'POST',
-			'url': 'https://cors-anywhere.herokuapp.com/https://graphql.mangarock.io/graphql',
-			'headers': {
-				'Content-Type': 'application/json',
-				'Authorization': parse['token'],
-				'Origin': null
-			},
-			body: JSON.stringify( {
-				"operationName": "favorites",
-				"variables": {},
-				"query": "query favorites($updatedAt: AWSDateTime, $nextToken: String) {\n  favorites: listFavoritesByUpdatedTimeWithPaging(updatedAt: $updatedAt, nextToken: $nextToken) {\n    items {\n      oid\n        __typename\n    }\n    __typename\n  }\n}\n"
-			} )
-		};
-		
-		/* Get users manga request */
-		return request( opt2 ).then( res => {
-			
-			let userManga = JSON.parse( res ).data.favorites.items; // Filters the result body to just the list of manga
-			
-			
-			let idObj = {}; // Object for request OIDs
-			
-			let mangaList = []; // Array for user manga
-			
-			userManga.forEach( entry => {
-				idObj[entry['oid']] = 0; // Adds new OID with value of 0 for the request
-				
-				let oidObject = {}; // Object for mangalist OIDs
-				
-				oidObject['oid'] = entry['oid'];
-				mangaList.push( oidObject ); // Push oidObject into the mangaList for later
-			} );
-			let detailObj = { "oids": idObj, "sections": [ "basic_info" ] }; // Creates an Object with the info the next request needs
-			
-			let opt3 = {
-				'method': 'POST',
-				'url': 'https://cors-anywhere.herokuapp.com/https://api.mangarockhd.com/query/web401/manga_detail',
-				'headers': {
-					'Content-Type': 'application/json',
-					'Origin': null
-				},
-				body: JSON.stringify( detailObj )
-			};
-			
-			/* Get manga info request */
-			return request( opt3 ).then( ( res ) => {
-				
-				//console.log(res.body);
-				let mangaInfo = Object.values( JSON.parse( res ).data ); // Parse request to JSON and only save the data
-				
-				mangaInfo.forEach( entry => {
-					let info = entry; // Sets info to the second item in the entry array
-					
-					let basicInfo = info['basic_info']; // Sets basic info
-					
-					if ( !basicInfo['name'] ) return; // If basic info does not contain "name" skip this loop iteration
-					
-					let currOID = info['default']['oid']; // Sets the current manga OID
-					
-					mangaList.forEach( manga => {
-						if ( manga['oid'] !== currOID ) return; // If the current info manga OID does not equal the current manga list OID, skip this loop iteration
-						
-						exportedList.mangas.push( { // Push a completed manga object to the tachiObj
-							name: basicInfo['name'],
-							thumbnail: basicInfo['thumbnail'],
-							description: basicInfo['description'],
-							alias: basicInfo['alias']
-						} )
-					} )
-				} );
-				
-				return exportedList;
-			} );
-			
-		} );
-	} );
-};
+
+	return axios(options).then((res: any) => {
+		return res.data.token
+	});
+}
+
+export const getMangaInfo = async ( token: any ) => {
+	let favoriteList = await getFavorites(token);
+
+	let oidList = [];
+
+	let idObject = {
+		oids: {},
+		sections: ['basic_info']
+	};
+
+	favoriteList.forEach(manga => {
+		idObject['oids'][manga['oid']] = 0;
+
+		oidList.push({ 'oid': manga['oid'] });
+	});
+
+	return axios({
+		method: 'POST',
+		url: 'https://cors-anywhere.herokuapp.com/https://api.mangarockhd.com/query/web401/manga_detail',
+		headers: {
+			'Content-Type': 'application/json',
+			'Origin': null
+		},
+		data: JSON.stringify(idObject)
+	}).then((res: any) => {
+		let mangaList = Object.values(res.data.data);
+		let mangaInfo = [];
+
+		mangaList.forEach(manga => {
+			let basicInfo = manga['basic_info'];
+			if (!basicInfo['name']) return;
+
+			let currOid = manga['default']['oid'];
+
+			oidList.forEach(item => {
+				if (item['oid'] !== currOid) return;
+
+				mangaInfo.push({
+					name: basicInfo['name'],
+					thumbnail: basicInfo['thumbnail'],
+					description: basicInfo['description'],
+					alias: basicInfo['alias']
+				})
+			})
+		})
+
+		return mangaInfo;
+	});
+}

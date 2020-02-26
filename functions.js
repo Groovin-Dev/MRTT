@@ -41,47 +41,34 @@ const exportList = async () => {
         return
     }
 
-    let userExists = await app.checkExistUser(email);
-
-    if (userExists.code !== 0) {
-        console.log(`User does not exist.`);
+    if (!(await app.checkExistUser(email)) || !(await app.verifyPassword(email, pass))) {
+        console.log(`User info incorrect`);
         $('body')
             .toast({
                 class: 'error',
-                message: `Your email does not exist. Please try again.`
+                message: `Please check your info and try again.`
             });
         return;
     };
-
-    let credOK = await app.verifyPassword(email, pass);
-
-    console.log(credOK);
-
-    if (!credOK['token']) {
-        console.log(`Password Incorrect`);
-        $('body')
-            .toast({
-                class: 'error',
-                message: `Your password is incorrect. Please try again.`
-            });
-        return;
-    }
 
     $('#box').hide();
     $('#loader').fadeIn(500);
 
     try {
-        const list = await app.exportMRList(email, pass, true);
-        if (list === undefined || list === null) {
+        let token = await app.signIn(email, pass, true);
+
+        let mangaList = await app.getMangaInfo(token);
+
+        if (mangaList === undefined || mangaList === null) {
             console.log("Could not get MR List");
             return;
         }
 
-        console.log(`Found ${list.mangas.length} manga on MR`);
+        console.log(`Found ${mangaList.length} manga on MR`);
 
         $('#login').fadeOut(500);
 
-        combinedList = (await app.mrListToMD(list))['results'];
+        combinedList = await app.MRtoMD(mangaList);
 
         $('#loader').fadeOut(500);
         $('#list').fadeIn(500);
